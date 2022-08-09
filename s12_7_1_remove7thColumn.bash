@@ -1,0 +1,9 @@
+# remove zeros from 7th column that mess with fread
+cut -f1-6 arabidopsisThalianaJointGenotypes_variantAndInvariant_filtered_Chr1.frq.count > arabidopsisThalianaJointGenotypes_variantAndInvariant_filtered_Chr1_fixed.frq.count
+cut -f1-6 arabidopsisThalianaJointGenotypes_variantAndInvariant_filtered_Chr2.frq.count > arabidopsisThalianaJointGenotypes_variantAndInvariant_filtered_Chr2_fixed.frq.count
+cut -f1-6 arabidopsisThalianaJointGenotypes_variantAndInvariant_filtered_Chr3.frq.count > arabidopsisThalianaJointGenotypes_variantAndInvariant_filtered_Chr3_fixed.frq.count
+cut -f1-6 arabidopsisThalianaJointGenotypes_variantAndInvariant_filtered_Chr4.frq.count > arabidopsisThalianaJointGenotypes_variantAndInvariant_filtered_Chr4_fixed.frq.count
+cut -f1-6 arabidopsisThalianaJointGenotypes_variantAndInvariant_filtered_Chr5.frq.count > arabidopsisThalianaJointGenotypes_variantAndInvariant_filtered_Chr5_fixed.frq.count
+
+
+# cat *.frq.count | cut -f1-6 > arabidopsisThalianaJointGenotypes_variantAndInvariant_filtered_ChrAll.frq.count

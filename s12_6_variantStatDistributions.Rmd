@@ -1,0 +1,156 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+# Variant sites
+```{r}
+rm(list=ls())
+library(ggplot2)
+
+### ALLELE FREQUENCIES ###
+# setwd("./vcfStats")
+# freqs = list.files(pattern = "frq")
+# 
+# readMyTable = function(x){
+#   read.table(x, sep = "\t", header = F, fill = T, row.names = NULL)[-1,1:5]
+# }
+# 
+# freqs = lapply(freqs, readMyTable)
+# 
+# freqs = do.call("rbind", freqs)
+# 
+# freqs$V2 = as.numeric(freqs$V2)
+# freqs$V3 = as.numeric(freqs$V3)
+# freqs$V4 = as.numeric(freqs$V4)
+# freqs$V5 = as.numeric(freqs$V5)
+
+#Frequency spectrum of non-ref alleles?
+# hist(1-freqs$V5)
+
+### QUALITY ###
+setwd("./vcfStats")
+readMyTable = function(x){
+  read.table(x, header = T)
+}
+qual = list.files(pattern = ".*_variant_.*lqual")
+qual = lapply(qual, readMyTable)
+qual = do.call("rbind", qual)
+
+#ggplot(qual, aes(QUAL)) +
+#  theme_classic() +
+#  geom_histogram(bins = 100)
+
+summary(qual$QUAL)
+
+qualVariant = qual$QUAL
+
+### DEPTH ###
+# setwd("./vcfStats")
+readMyTable = function(x){
+  read.table(x, header = T)
+}
+dep = list.files(pattern = ".*_variant_.*ldepth.mean")
+dep = lapply(dep, readMyTable)
+dep = do.call("rbind", dep)
+
+#ggplot(dep, aes(MEAN_DEPTH)) +
+#  geom_histogram(binwidth = 1)
+
+summary(dep$MEAN_DEPTH)
+quantile(dep$MEAN_DEPTH, 0.025)
+quantile(dep$MEAN_DEPTH, 0.9985)
+
+nrow(dep[(dep$MEAN_DEPTH > 100),])
+
+depVariant = dep$MEAN_DEPTH
+
+### MISSINGNESS ###
+# setwd("./vcfStats")
+readMyTable = function(x){
+  read.table(x, header = T)
+}
+miss = list.files(pattern = ".*_variant_.*lmiss")
+miss = lapply(miss, readMyTable)
+miss = do.call("rbind", miss)
+
+missVariant = miss$F_MISS
+
+#ggplot(miss, aes(F_MISS)) +
+#  geom_histogram(bins = 100)
+
+summary(miss$F_MISS)
+```
+
+# invariant sites
+```{r}
+setwd("./vcfStats")
+
+### QUALITY ###
+readMyTable = function(x){
+  read.table(x, header = T)
+}
+qual = list.files(pattern = ".*_invariant_.*lqual")
+qual = lapply(qual, readMyTable)
+qual = do.call("rbind", qual)
+
+#ggplot(qual, aes(QUAL)) +
+#  theme_classic() +
+#  geom_histogram(bins = 100)
+
+summary(qual$QUAL)
+quantile(qual$QUAL, 0.08)
+
+nrow(qual[(qual$QUAL > 100),])
+
+qualInvariant = qual$QUAL
+
+### DEPTH ###
+#setwd("./vcfStats")
+readMyTable = function(x){
+  read.table(x, header = T)
+}
+dep = list.files(pattern = ".*_invariant_.*ldepth.mean")
+dep = lapply(dep, readMyTable)
+dep = do.call("rbind", dep)
+
+depInvariant = dep$MEAN_DEPTH
+
+#ggplot(dep, aes(MEAN_DEPTH)) +
+#  geom_histogram(binwidth = 1)
+
+summary(dep$MEAN_DEPTH)
+quantile(dep$MEAN_DEPTH, 0.025)
+quantile(dep$MEAN_DEPTH, 0.99999)
+
+### MISSINGNESS ###
+#setwd("./vcfStats")
+readMyTable = function(x){
+  read.table(x, header = T)
+}
+miss = list.files(pattern = ".*_invariant_.*lmiss")
+miss = lapply(miss, readMyTable)
+miss = do.call("rbind", miss)
+
+missInvariant = miss$F_MISS
+
+#ggplot(miss, aes(F_MISS)) +
+#  geom_histogram(bins = 100)
+
+summary(miss$F_MISS)
+```
+
+# compare variant and invariant
+```{r}
+
+# quality scores, log transform them so that they can be seen on the same scale
+boxplot(log10(qualVariant), log10(qualInvariant), names = c("variant", "invariant"), ylab = "log10(QUAL score)")
+
+# depth
+boxplot(log10(depVariant), log10(depInvariant), names = c("variant", "invariant"), ylab = "log10(Depth per site)")
+
+# missingness
+boxplot(log10(missVariant), log10(missInvariant), names = c("variant", "invariant"), ylab = "log10(Missingness per site)")
+
+```
+

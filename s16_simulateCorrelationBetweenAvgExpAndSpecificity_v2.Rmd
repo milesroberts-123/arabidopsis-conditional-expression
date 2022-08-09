@@ -1,0 +1,312 @@
+---
+title: "Simulate correlation between average expression and treatment-specificity"
+output: html_notebook
+---
+
+# Load packages
+```{r}
+rm(list = ls())
+gc()
+library(matrixStats) # to take row medians
+library(ggplot2)
+library(tidyverse)
+```
+
+# SIMULATION PARAMETERS
+```{r}
+nGenes = 1000 # number of genes
+nTreatments = 10 # number of treatments/environments
+nExperimentsPerTreatment = 5 # number of experiments per treatment
+nSims = 1000 # number of simulations to run
+binomP = 0.4 # prob parameter for binomial distribution, used to draw zeros
+nbinomSize = 100 # size paramter for negative binomial, draws nonzero expression values
+nbinomP = 0.1 # prob paramter for negative binomial, draws nonzero expression values
+```
+
+# SIMULATION ONE
+## Assume that gene expression values are drawn from negative binomial
+```{r}
+### FUNCTIONS
+# calcualte specificity index
+specificity = function(x){
+  sum(1-(x/max(x)))/(length(x)-1)
+}
+
+# Test specificity function
+# specificity(c(0,0,0,0,0,0,0,0,10000))
+# specificity(c(1,100,5,5,10))
+# specificity(c(10,10,10,10,10,10))
+
+# store output for simulations
+sim1Cors = rep(NA, length.out = nSims)
+# simAvgExps = vector(mode = "list", length = nSims)
+# simSpecs = vector(mode = "list", length = nSims)
+
+### RUN SIMULATION
+for(j in 1:nSims){
+  # Generate random expression matrix
+  expMat = matrix(rnbinom(n = nGenes*nTreatments*nExperimentsPerTreatment, size = nbinomSize, p = nbinomP), nrow = nGenes, ncol = nTreatments*nExperimentsPerTreatment)
+
+  # calculate average expression across treatments
+  avgExp = rowMeans(expMat)
+
+  # Matrix to store treatment profiles (expression averages within each treatment)
+  treatmentProfiles = NULL
+  # calculate specifcity index for each gene
+  for(i in 1:nTreatments){
+    # print(c(2*(i-1)+1,2*i))
+    # Subset rows in groups of nTreatments, calculate mean of experiments from same treatment
+    treatmentProfile = rowMeans(expMat[,c((nExperimentsPerTreatment*(i-1)+1):(nExperimentsPerTreatment*i))])
+    # save experiment means to build treatment profiles for each gene
+    treatmentProfiles = cbind(treatmentProfiles, treatmentProfile)
+  }
+
+  # calculate specificity from profiles
+  simSpec = apply(treatmentProfiles, MARGIN = 1, FUN = specificity)
+
+  # calculate correltion between average expression and specificity
+  # simAvgExps[[j]]= avgExp
+  # simSpecs[[j]] = simSpec
+  sim1Cors[j] = cor(avgExp, simSpec)
+
+}
+
+### SIMULATION RESULTS
+# hist(unlist(simAvgExps))
+# summary(unlist(simAvgExps))
+
+# hist(unlist(simSpecs))
+# summary(unlist(simSpecs))
+
+hist(sim1Cors, xlab = "Correlation between average expression and treatment specificity", main = "")
+summary(sim1Cors)
+```
+
+# SIMULATION TWO
+## Expression values are drawn from a different zero-inflated negative binomial
+```{r}
+
+# Zero-inflated negative binomial
+# n = number of gene expression values to draw
+# size = size parameter for negative binomial
+# p2 = prob parameter for negative binomial
+# p1 = prob paramter for binomial, used to draw zeros
+rznbinom = function(n, size, p1, p2){
+  # generate random vector of zeros and ones
+  output = rbinom(n = n, size = 1, prob = p1)
+
+  # For every element with a one, replace with value from negative binomial
+  indices = which(output == 1)
+  nOnes = length(indices)
+  output[indices] = rnbinom(nOnes, size = 100, prob = p2)
+  
+  return(output)
+}
+
+# test rznbinom function
+hist(rznbinom(1000, 100, 0.7, 0.1))
+
+# store output for simulations
+sim2Cors = rep(NA, length.out = nSims)
+
+### RUN SIMULATION
+for(j in 1:nSims){
+  # Generate random expression matrix
+  expMat = matrix(rznbinom(n = nGenes*nTreatments*nExperimentsPerTreatment, size = nbinomSize, p1 = binomP, p2 = nbinomP), nrow = nGenes, ncol = nTreatments*nExperimentsPerTreatment)
+
+  # calculate average expression across treatments
+  avgExp = rowMeans(expMat)
+
+  # Matrix to store treatment profiles (expression averages within each treatment)
+  treatmentProfiles = NULL
+  # calculate specifcity index for each gene
+  for(i in 1:nTreatments){
+    # print(c(2*(i-1)+1,2*i))
+    # Subset rows in groups of nTreatments, calculate mean of experiments from same treatment
+    treatmentProfile = rowMeans(expMat[,c((nExperimentsPerTreatment*(i-1)+1):(nExperimentsPerTreatment*i))])
+    # save experiment means to build treatment profiles for each gene
+    treatmentProfiles = cbind(treatmentProfiles, treatmentProfile)
+  }
+
+  # calculate specificity from profiles
+  simSpec = apply(treatmentProfiles, MARGIN = 1, FUN = specificity)
+
+  # calculate correltion between average expression and specificity
+  sim2Cors[j] = cor(avgExp, simSpec)
+
+}
+
+### SIMULATION RESULTS
+hist(sim2Cors, main = "", xlab = "Correlation between average expression and treatment specificity")
+summary(sim2Cors)
+```
+
+# SIMULATION THREE
+## Try to remove correlation between average expression and treatment-specificity by looking at max expression instead of mean expression
+```{r}
+
+# store output for simulations
+sim3Cors = rep(NA, length.out = nSims)
+
+### RUN SIMULATION
+for(j in 1:nSims){
+  # Generate random expression matrix
+  expMat = matrix(rznbinom(n = nGenes*nTreatments*nExperimentsPerTreatment, size = nbinomSize, p1 = binomP, p2 = nbinomP), nrow = nGenes, ncol = nTreatments*nExperimentsPerTreatment)
+
+  # calculate average expression across treatments
+  avgExp = rowMaxs(expMat)
+
+  # Matrix to store treatment profiles (expression averages within each treatment)
+  treatmentProfiles = NULL
+  # calculate specifcity index for each gene
+  for(i in 1:nTreatments){
+    # print(c(2*(i-1)+1,2*i))
+    # Subset rows in groups of nTreatments, calculate mean of experiments from same treatment
+    treatmentProfile = rowMeans(expMat[,c((nExperimentsPerTreatment*(i-1)+1):(nExperimentsPerTreatment*i))])
+    # save experiment means to build treatment profiles for each gene
+    treatmentProfiles = cbind(treatmentProfiles, treatmentProfile)
+  }
+
+  # calculate specificity from profiles
+  simSpec = apply(treatmentProfiles, MARGIN = 1, FUN = specificity)
+
+  # calculate correltion between average expression and specificity
+  sim3Cors[j] = cor(avgExp, simSpec, use = "pairwise.complete.obs")
+
+}
+
+### SIMULATION RESULTS
+hist(sim3Cors)
+summary(sim3Cors)
+```
+
+
+# SIMULATION FOUR
+## Look at correlation between average expression (excluding zeros) and treatment-specificity
+```{r}
+# Function for average of vector, excluding zeros
+meanExcludeZeros = function(x){
+  mean(x[(x != 0)])
+}
+
+mean(0:10)
+meanExcludeZeros(0:10)
+
+# store output for simulations
+sim4Cors = rep(NA, length.out = nSims)
+
+### RUN SIMULATION
+for(j in 1:nSims){
+  # Generate random expression matrix
+  expMat = matrix(rznbinom(n = nGenes*nTreatments*nExperimentsPerTreatment, size = nbinomSize, p1 = binomP, p2 = nbinomP), nrow = nGenes, ncol = nTreatments*nExperimentsPerTreatment)
+
+  # calculate average expression across treatments
+  avgExp = apply(expMat, MARGIN = 1, FUN = meanExcludeZeros)
+
+  # Matrix to store treatment profiles (expression averages within each treatment)
+  treatmentProfiles = NULL
+  # calculate specifcity index for each gene
+  for(i in 1:nTreatments){
+    
+    # Subset rows in groups of nTreatments, calculate mean of experiments from same treatment
+    treatmentProfile = rowMeans(expMat[,c((nExperimentsPerTreatment*(i-1)+1):(nExperimentsPerTreatment*i))])
+    # save experiment means to build treatment profiles for each gene
+    treatmentProfiles = cbind(treatmentProfiles, treatmentProfile)
+  }
+
+  # calculate specificity from profiles
+  simSpec = apply(treatmentProfiles, MARGIN = 1, FUN = specificity)
+
+  # calculate correltion between average expression and specificity
+  sim4Cors[j] = cor(avgExp, simSpec, use = "pairwise.complete.obs")
+
+}
+
+### SIMULATION RESULTS
+hist(sim4Cors)
+summary(sim4Cors)
+```
+
+# Visualize results of all sims side-by-side
+```{r}
+
+myColorPalette = c("#ff4141", "#f6ee8b", "#52624a", "#7b834a")
+
+simData = data.frame(simulation = as.factor(c(rep("NegBinom, mean expression", times = length(sim1Cors)), rep("ZINegBinom, mean expression", times = length(sim2Cors)), rep("ZINegBinom, max expression", times = length(sim3Cors)), rep("ZINegBinom, mean expression, exclude zeros", times = length(sim4Cors)))), correlations = c(sim1Cors, sim2Cors, sim3Cors, sim4Cors))
+
+ggplot(simData, aes(x=correlations, color = simulation)) + 
+  theme_classic() +
+  labs(x = "Correlation between expression level and treatment-specificity", y = "Density") +
+  scale_color_manual(values=myColorPalette) +
+  geom_density()
+  # stat_density(aes(x=correlations, color = simulation), geom = "line")
+```
+
+# What happens to tau as number of treatments approaches infinity?
+```{r}
+# Specificity seems to not increase very rapidly as more treatments are added, potentially means convergence
+small = replicate(100, specificity(rznbinom(1000,100,0.4,0.1)))
+medium = replicate(100, specificity(rznbinom(10000,100,0.4,0.1)))
+large = replicate(100, specificity(rznbinom(100000,100,0.4,0.1)))
+
+summary(small)
+summary(medium)
+summary(large)
+
+# Increasing probability of nonzero expression -> lowers tau
+small = replicate(100, specificity(rznbinom(1000,100,0.9,0.1)))
+medium = replicate(100, specificity(rznbinom(10000,100,0.9,0.1)))
+large = replicate(100, specificity(rznbinom(100000,100,0.9,0.1)))
+
+summary(small)
+summary(medium)
+summary(large)
+
+# What happens when you manipulate the mean and variance of negbinom?
+# Increase variance -> increase tau, seemingly very slowly
+# increase size parameter -> variance increases linearly
+# increase probability parameter -> variance increases hyperbolically
+small = replicate(100, specificity(rznbinom(1000,1000,0.4,0.1)))
+medium = replicate(100, specificity(rznbinom(10000,1000,0.4,0.1)))
+large = replicate(100, specificity(rznbinom(100000,1000,0.4,0.1)))
+
+summary(small)
+summary(medium)
+summary(large)
+
+# GRID SEARCH, HOW DO ZINEGBINOM PARAMETERS AFFECT TAU
+# Define grid boundry
+p1List = seq(from = 0.1, to = 1, by = 0.1)
+p2List = seq(from = 0.1, to = 1, by = 0.1)
+nList = seq(from = 100, to = 1000, by = 100)
+
+# grid search with three parameters: n, p1, p2
+# Define a named list of parameter values
+gs <- list(nValues = nList,
+           p1Values = p1List,
+           p2Values = p2List) %>% 
+  cross_d() # Convert to data frame grid
+
+gs = as.data.frame(gs)
+
+# loop over grid points
+tauResult = c()
+for(i in 1:nrow(gs)){
+  gsRow = gs[i,]
+  nPoint = as.numeric(gsRow[1])
+  p1Point = as.numeric(gsRow[2])
+  p2Point = as.numeric(gsRow[3])
+
+  tauResult = c(tauResult, specificity(rznbinom(1000,nPoint,p1Point,p2Point)))
+  # tauResult = c(tauResult, mean(replicate(100, specificity(rznbinom(1000,nPoint,p1Point,p2Point)))))
+}
+
+gs$tau = tauResult
+
+# Look at how these different factors influence tau
+# Tau is overwhelmingly determined by the proportion of observations that are zeros
+summary(lm(tau ~ nValues + p1Values + p2Values, gs))
+summary(lm(tau ~ p1Values, gs))
+summary(lm(tau ~ p2Values, gs))
+summary(lm(tau ~ nValues, gs))
+```
